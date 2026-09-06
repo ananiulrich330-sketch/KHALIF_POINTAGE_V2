@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHALIF POINTAGE V2</title>
+    <!-- Tailwind CSS pour un design propre et professionnel -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Bibliothèques pour l'export Excel et PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <!-- En-tête de l'application -->
+    <header class="bg-indigo-700 text-white shadow-md py-4 px-6 flex justify-between items-center">
+        <h1 class="text-xl font-bold tracking-wide">KHALIF POINTAGE V2</h1>
+        <div id="user-info" class="text-sm bg-indigo-800 py-1 px-3 rounded-full hidden">
+            Connecté : <span id="current-user-name" class="font-semibold"></span>
+        </div>
+    </header>
+
+    <!-- Conteneur Principal -->
+    <main class="max-w-4xl mx-auto p-4 mt-6">
+
+        <!-- Section Authentification / Accueil -->
+        <section id="auth-section" class="bg-white rounded-xl shadow-lg p-6 max-w-md mx-auto">
+            <h2 class="text-2xl font-semibold text-center text-indigo-900 mb-6">Connexion Agent</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Identifiant / Matricule</label>
+                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Entrez votre identifiant">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
+                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition duration-200">
+                    Se connecter
+                </button>
+            </div>
+        </section>
+
+        <!-- Section Pointage Agent -->
+        <section id="pointage-section" class="bg-white rounded-xl shadow-lg p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-indigo-900">Espace de Pointage</h2>
+                <button onclick="logout()" class="text-sm bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg transition">Déconnexion</button>
+            </div>
+            <div class="text-center py-8 space-y-6">
+                <div id="gps-status" class="text-sm text-slate-500">Vérification de la géolocalisation en cours...</div>
+                <button id="btn-pointer" onclick="effectuerPointage()" disabled class="bg-slate-300 text-slate-500 font-bold py-4 px-8 rounded-xl shadow cursor-not-allowed transition text-lg">
+                    EFFECTUER MON POINTAGE
+                </button>
+                <div id="pointage-msg" class="text-sm font-medium"></div>
+            </div>
+        </section>
+
+        <!-- Section Administration -->
+        <section id="admin-section" class="bg-white rounded-xl shadow-lg p-6 hidden space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h2 class="text-xl font-semibold text-indigo-900">Tableau de Bord Administrateur</h2>
+                <button onclick="logout()" class="text-sm bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg transition">Déconnexion</button>
+            </div>
+
+            <!-- Contrôles et Exports -->
+            <div class="flex flex-wrap gap-3 justify-between items-center">
+                <div class="text-sm text-slate-600 font-medium">Affichage des pointages du jour (Historique global conservé en base)</div>
+                <div class="flex gap-2">
+                    <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Exporter Excel</button>
+                    <button onclick="exportPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Exporter PDF</button>
+                </div>
+            </div>
+
+            <!-- Table des pointages du jour -->
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 text-sm">
+                            <th class="p-3 border-b">Agent</th>
+                            <th class="p-3 border-b">Heure de Pointage</th>
+                            <th class="p-3 border-b">Statut GPS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-table-body" class="text-sm divide-y divide-slate-100">
+                        <!-- Rempli dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Gestion des appareils / Sécurité -->
+            <div class="border-t pt-4">
+                <h3 class="text-md font-semibold text-slate-800 mb-3">Réinitialisation d'association d'appareil</h3>
+                <div class="flex gap-3">
+                    <input type="text" id="admin-target-user" placeholder="Nom d'utilisateur à réinitialiser" class="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="resetDeviceBinding()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Réinitialiser l'appareil</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Script Logique de l'application -->
+    <script>
+        // Configuration Firebase (À adapter avec vos clés si nécessaire)
+        const firebaseConfig = {
+            databaseURL: "https://khalif-pointage-default-rtdb.firebaseio.com/"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        } else {
+            firebase.app();
+        }
+        const db = firebase.database();
+
+        // Paramètres de géolocalisation stricts (50m autour du point cible)
+        const TARGET_LAT = 5.339317;
+        const TARGET_LON = -4.055416;
+        const MAX_RADIUS_METERS = 50;
+
+        let currentUser = null;
+
+        // Fonction utilitaire de hachage SHA-256
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Calcul de distance GPS (Formule de Haversine)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Rayon de la terre en mètres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        // Gestion de la connexion
+        async function handleLogin() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+
+            if (!user || !pass) {
+                alert("Veuillez remplir tous les champs.");
+                return;
+            }
+
+            const hashedPass = await hashPassword(pass);
+
+            // Vérification basique dans la base Firebase (ou comptes par défaut)
+            db.ref('users/' + user).once('value', async (snapshot) => {
+                const userData = snapshot.val();
+                
+                // Compte admin par défaut si non configuré
+                if (user === 'admin' && pass === 'admin123') {
+                    currentUser = { username: 'admin', role: 'admin' };
+                    showSection('admin-section');
+                    loadAdminDashboard();
+                    return;
+                }
+
+                if (!userData) {
+                    alert("Utilisateur inconnu.");
+                    return;
+                }
+
+                if (userData.password === hashedPass) {
+                    currentUser = { username: user, role: userData.role || 'agent', deviceId: userData.deviceId };
+                    if (currentUser.role === 'admin') {
+                        showSection('admin-section');
+                        loadAdminDashboard();
+                    } else {
+                        showSection('pointage-section');
+                        initGeolocationCheck();
+                    }
+                } else {
+                    alert("Mot de passe incorrect.");
+                }
+            });
+        }
+
+        function showSection(sectionId) {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('pointage-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            if(currentUser) {
+                document.getElementById('user-info').classList.remove('hidden');
+                document.getElementById('current-user-name').innerText = currentUser.username;
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('user-info').classList.add('hidden');
+            showSection('auth-section');
+        }
+
+        // Vérification GPS pour l'agent
+        function initGeolocationCheck() {
+            const statusDiv = document.getElementById('gps-status');
+            const btnPointer = document.getElementById('btn-pointer');
+
+            if (!navigator.geolocation) {
+                statusDiv.innerText = "La géolocalisation n'est pas supportée par votre navigateur.";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const distance = calculateDistance(lat, lon, TARGET_LAT, TARGET_LON);
+
+                if (distance <= MAX_RADIUS_METERS) {
+                    statusDiv.innerText = `Position valide (à ${Math.round(distance)}m du site).`;
+                    statusDiv.className = "text-sm text-emerald-600 font-medium";
+                    btnPointer.disabled = false;
+                    btnPointer.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow transition text-lg cursor-pointer";
+                } else {
+                    statusDiv.innerText = `Hors zone autorisée (à ${Math.round(distance)}m, maximum ${MAX_RADIUS_METERS}m requis).`;
+                    statusDiv.className = "text-sm text-rose-600 font-medium";
+                }
+            }, (error) => {
+                statusDiv.innerText = "Erreur de géolocalisation : activez votre GPS.";
+                statusDiv.className = "text-sm text-rose-600 font-medium";
+            }, { enableHighAccuracy: true });
+        }
+
+        // Action de pointage avec liaison d'appareil anti-fraude
+        function effectuerPointage() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            let deviceId = localStorage.getItem('khalif_device_id');
+            if (!deviceId) {
+                deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('khalif_device_id', deviceId);
+            }
+
+            db.ref(`users/${currentUser.username}`).once('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                
+                // Vérif anti-fraude appareil
+                if (data.deviceId && data.deviceId !== deviceId) {
+                    alert("Sécurité : Ce compte est déjà lié à un autre appareil. Contactez l'administrateur.");
+                    return;
+                }
+
+                // Enregistrement de l'appareil si premier lien
+                if (!data.deviceId) {
+                    db.ref(`users/${currentUser.username}`).update({ deviceId: deviceId });
+                }
+
+                // Vérification si déjà pointé aujourd'hui
+                db.ref(`pointages/${todayStr}/${currentUser.username}`).once('value', (snap) => {
+                    if (snap.exists()) {
+                        document.getElementById('pointage-msg').innerText = "Vous avez déjà effectué votre pointage aujourd'hui.";
+                        document.getElementById('pointage-msg').className = "text-sm font-medium text-amber-600";
+                        return;
+                    }
+
+                    // Sauvegarde du pointage
+                    const pointageData = {
+                        timestamp: new Date().toISOString(),
+                        agent: currentUser.username,
+                        status: 'Validé (GPS & Appareil)'
+                    };
+
+                    db.ref(`pointages/${todayStr}/${currentUser.username}`).set(pointageData, (error) => {
+                        if (!error) {
+                            document.getElementById('pointage-msg').innerText = "Pointage enregistré avec succès !";
+                            document.getElementById('pointage-msg').className = "text-sm font-medium text-emerald-600";
+                            document.getElementById('btn-pointer').disabled = true;
+                        } else {
+                            alert("Erreur lors de l'enregistrement.");
+                        }
+                    });
+                });
+            });
+        }
+
+        // Dashboard Admin (limitée aux pointages du jour pour clarté de l'interface)
+        function loadAdminDashboard() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const tbody = document.getElementById('admin-table-body');
+            
+            db.ref(`pointages/${todayStr}`).on('value', (snapshot) => {
+                tbody.innerHTML = '';
+                const records = snapshot.val();
+                if (!records) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">Aucun pointage enregistré aujourd'hui.</td></tr>`;
+                    return;
+                }
+
+                Object.keys(records).forEach(agent => {
+                    const rec = records[agent];
+                    const timeFormatted = new Date(rec.timestamp).toLocaleTimeString();
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-medium text-slate-700">${agent}</td>
+                            <td class="p-3 text-slate-600">${timeFormatted}</td>
+                            <td class="p-3 text-emerald-600 font-medium">${rec.status}</td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        // Réinitialisation de l'appareil d'un utilisateur par l'admin
+        function resetDeviceBinding() {
+            const targetUser = document.getElementById('admin-target-user').value.trim();
+            if (!targetUser) {
+                alert("Entrez un nom d'utilisateur.");
+                return;
+            }
+            db.ref(`users/${targetUser}`).update({ deviceId: null }, (error) => {
+                if (!error) {
+                    alert(`L'appareil associé pour ${targetUser} a été réinitialisé.`);
+                    document.getElementById('admin-target-user').value = '';
+                } else {
+                    alert("Erreur lors de la réinitialisation.");
+                }
+            });
+        }
+
+        // Export Excel du jour
+        function exportExcel() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            db.ref(`pointages/${todayStr}`).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) { alert("Aucune donnée à exporter pour aujourd'hui."); return; }
+                
+                const formattedData = Object.keys(data).map(agent => ({
+                    Agent: agent,
+                    Date: todayStr,
+                    Heure: new Date(data[agent].timestamp).toLocaleTimeString(),
+                    Statut: data[agent].status
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(formattedData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Pointages");
+                XLSX.writeFile(workbook, `Pointage_${todayStr}.xlsx`);
+            });
+        }
+
+        // Export PDF du jour
+        function exportPDF() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            db.ref(`pointages/${todayStr}`).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) { alert("Aucune donnée à exporter pour aujourd'hui."); return; }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.text(`Rapport de Pointage - ${todayStr}`, 14, 20);
+                
+                const rows = [];
+                Object.keys(data).forEach(agent => {
+                    rows.push([agent, todayStr, new Date(data[agent].timestamp).toLocaleTimeString(), data[agent].status]);
+                });
+
+                doc.autoTable({
+                    head: [['Agent', 'Date', 'Heure', 'Statut']],
+                    body: rows,
+                    startY: 30,
+                });
+
+                doc.save(`Pointage_${todayStr}.pdf`);
+            });
+        }
+    </script>
+</body>
+</html>
