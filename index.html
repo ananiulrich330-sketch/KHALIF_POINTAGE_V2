@@ -3,385 +3,435 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KHALIF POINTAGE V2</title>
-    <!-- Tailwind CSS pour un design propre et professionnel -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <!-- Bibliothèques pour l'export Excel et PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Pointage — Khalif Ingénierie</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF, autoTable et SheetJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+<body class="bg-[#121212] text-gray-100 min-h-screen flex flex-col justify-between font-sans">
 
-    <!-- En-tête de l'application -->
-    <header class="bg-indigo-700 text-white shadow-md py-4 px-6 flex justify-between items-center">
-        <h1 class="text-xl font-bold tracking-wide">KHALIF POINTAGE V2</h1>
-        <div id="user-info" class="text-sm bg-indigo-800 py-1 px-3 rounded-full hidden">
-            Connecté : <span id="current-user-name" class="font-semibold"></span>
-        </div>
-    </header>
-
-    <!-- Conteneur Principal -->
-    <main class="max-w-4xl mx-auto p-4 mt-6">
-
-        <!-- Section Authentification / Accueil -->
-        <section id="auth-section" class="bg-white rounded-xl shadow-lg p-6 max-w-md mx-auto">
-            <h2 class="text-2xl font-semibold text-center text-indigo-900 mb-6">Connexion Agent</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Identifiant / Matricule</label>
-                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Entrez votre identifiant">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
-                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••">
-                </div>
-                <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition duration-200">
-                    Se connecter
-                </button>
-            </div>
-        </section>
-
-        <!-- Section Pointage Agent -->
-        <section id="pointage-section" class="bg-white rounded-xl shadow-lg p-6 hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-semibold text-indigo-900">Espace de Pointage</h2>
-                <button onclick="logout()" class="text-sm bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg transition">Déconnexion</button>
-            </div>
-            <div class="text-center py-8 space-y-6">
-                <div id="gps-status" class="text-sm text-slate-500">Vérification de la géolocalisation en cours...</div>
-                <button id="btn-pointer" onclick="effectuerPointage()" disabled class="bg-slate-300 text-slate-500 font-bold py-4 px-8 rounded-xl shadow cursor-not-allowed transition text-lg">
-                    EFFECTUER MON POINTAGE
-                </button>
-                <div id="pointage-msg" class="text-sm font-medium"></div>
-            </div>
-        </section>
-
-        <!-- Section Administration -->
-        <section id="admin-section" class="bg-white rounded-xl shadow-lg p-6 hidden space-y-6">
-            <div class="flex justify-between items-center border-b pb-4">
-                <h2 class="text-xl font-semibold text-indigo-900">Tableau de Bord Administrateur</h2>
-                <button onclick="logout()" class="text-sm bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg transition">Déconnexion</button>
-            </div>
-
-            <!-- Contrôles et Exports -->
-            <div class="flex flex-wrap gap-3 justify-between items-center">
-                <div class="text-sm text-slate-600 font-medium">Affichage des pointages du jour (Historique global conservé en base)</div>
-                <div class="flex gap-2">
-                    <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Exporter Excel</button>
-                    <button onclick="exportPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Exporter PDF</button>
-                </div>
-            </div>
-
-            <!-- Table des pointages du jour -->
-            <div class="overflow-x-auto border rounded-lg">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-100 text-slate-600 text-sm">
-                            <th class="p-3 border-b">Agent</th>
-                            <th class="p-3 border-b">Heure de Pointage</th>
-                            <th class="p-3 border-b">Statut GPS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-table-body" class="text-sm divide-y divide-slate-100">
-                        <!-- Rempli dynamiquement -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Gestion des appareils / Sécurité -->
-            <div class="border-t pt-4">
-                <h3 class="text-md font-semibold text-slate-800 mb-3">Réinitialisation d'association d'appareil</h3>
-                <div class="flex gap-3">
-                    <input type="text" id="admin-target-user" placeholder="Nom d'utilisateur à réinitialiser" class="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button onclick="resetDeviceBinding()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Réinitialiser l'appareil</button>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Script Logique de l'application -->
-    <script>
-        // Configuration Firebase (À adapter avec vos clés si nécessaire)
-        const firebaseConfig = {
-            databaseURL: "https://khalif-pointage-default-rtdb.firebaseio.com/"
-        };
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        } else {
-            firebase.app();
-        }
-        const db = firebase.database();
-
-        // Paramètres de géolocalisation stricts (50m autour du point cible)
-        const TARGET_LAT = 5.339317;
-        const TARGET_LON = -4.055416;
-        const MAX_RADIUS_METERS = 50;
-
-        let currentUser = null;
-
-        // Fonction utilitaire de hachage SHA-256
-        async function hashPassword(password) {
-            const msgBuffer = new TextEncoder().encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        // Calcul de distance GPS (Formule de Haversine)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // Rayon de la terre en mètres
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c;
-        }
-
-        // Gestion de la connexion
-        async function handleLogin() {
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value;
-
-            if (!user || !pass) {
-                alert("Veuillez remplir tous les champs.");
-                return;
-            }
-
-            const hashedPass = await hashPassword(pass);
-
-            // Vérification basique dans la base Firebase (ou comptes par défaut)
-            db.ref('users/' + user).once('value', async (snapshot) => {
-                const userData = snapshot.val();
+    <!-- En-tête / Navigation / Heure -->
+    <div class="max-w-4xl mx-auto px-4 py-6 w-full">
+        
+        <!-- BLOC EN-TÊTE STYLISÉ -->
+        <div class="flex justify-between items-center mb-8 bg-[#1e1e1e] p-4 rounded-2xl border border-[#2d2d2d] shadow-lg">
+            <div class="flex items-center space-x-3">
+                <span class="bg-indigo-600 text-white font-extrabold text-xs sm:text-sm px-3 py-1.5 rounded-xl shadow-md tracking-wider uppercase">
+                    Khalif Ingénierie
+                </span>
                 
-                // Compte admin par défaut si non configuré
-                if (user === 'admin' && pass === 'admin123') {
-                    currentUser = { username: 'admin', role: 'admin' };
-                    showSection('admin-section');
-                    loadAdminDashboard();
-                    return;
-                }
-
-                if (!userData) {
-                    alert("Utilisateur inconnu.");
-                    return;
-                }
-
-                if (userData.password === hashedPass) {
-                    currentUser = { username: user, role: userData.role || 'agent', deviceId: userData.deviceId };
-                    if (currentUser.role === 'admin') {
-                        showSection('admin-section');
-                        loadAdminDashboard();
-                    } else {
-                        showSection('pointage-section');
-                        initGeolocationCheck();
-                    }
-                } else {
-                    alert("Mot de passe incorrect.");
-                }
-            });
-        }
-
-        function showSection(sectionId) {
-            document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('pointage-section').classList.add('hidden');
-            document.getElementById('admin-section').classList.add('hidden');
-            document.getElementById(sectionId).classList.remove('hidden');
-
-            if(currentUser) {
-                document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('current-user-name').innerText = currentUser.username;
-            }
-        }
-
-        function logout() {
-            currentUser = null;
-            document.getElementById('user-info').classList.add('hidden');
-            showSection('auth-section');
-        }
-
-        // Vérification GPS pour l'agent
-        function initGeolocationCheck() {
-            const statusDiv = document.getElementById('gps-status');
-            const btnPointer = document.getElementById('btn-pointer');
-
-            if (!navigator.geolocation) {
-                statusDiv.innerText = "La géolocalisation n'est pas supportée par votre navigateur.";
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition((position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                const distance = calculateDistance(lat, lon, TARGET_LAT, TARGET_LON);
-
-                if (distance <= MAX_RADIUS_METERS) {
-                    statusDiv.innerText = `Position valide (à ${Math.round(distance)}m du site).`;
-                    statusDiv.className = "text-sm text-emerald-600 font-medium";
-                    btnPointer.disabled = false;
-                    btnPointer.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow transition text-lg cursor-pointer";
-                } else {
-                    statusDiv.innerText = `Hors zone autorisée (à ${Math.round(distance)}m, maximum ${MAX_RADIUS_METERS}m requis).`;
-                    statusDiv.className = "text-sm text-rose-600 font-medium";
-                }
-            }, (error) => {
-                statusDiv.innerText = "Erreur de géolocalisation : activez votre GPS.";
-                statusDiv.className = "text-sm text-rose-600 font-medium";
-            }, { enableHighAccuracy: true });
-        }
-
-        // Action de pointage avec liaison d'appareil anti-fraude
-        function effectuerPointage() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            let deviceId = localStorage.getItem('khalif_device_id');
-            if (!deviceId) {
-                deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('khalif_device_id', deviceId);
-            }
-
-            db.ref(`users/${currentUser.username}`).once('value', (snapshot) => {
-                const data = snapshot.val() || {};
+                <span class="text-gray-600 font-light text-lg">|</span>
                 
-                // Vérif anti-fraude appareil
-                if (data.deviceId && data.deviceId !== deviceId) {
-                    alert("Sécurité : Ce compte est déjà lié à un autre appareil. Contactez l'administrateur.");
-                    return;
-                }
-
-                // Enregistrement de l'appareil si premier lien
-                if (!data.deviceId) {
-                    db.ref(`users/${currentUser.username}`).update({ deviceId: deviceId });
-                }
-
-                // Vérification si déjà pointé aujourd'hui
-                db.ref(`pointages/${todayStr}/${currentUser.username}`).once('value', (snap) => {
-                    if (snap.exists()) {
-                        document.getElementById('pointage-msg').innerText = "Vous avez déjà effectué votre pointage aujourd'hui.";
-                        document.getElementById('pointage-msg').className = "text-sm font-medium text-amber-600";
-                        return;
-                    }
-
-                    // Sauvegarde du pointage
-                    const pointageData = {
-                        timestamp: new Date().toISOString(),
-                        agent: currentUser.username,
-                        status: 'Validé (GPS & Appareil)'
-                    };
-
-                    db.ref(`pointages/${todayStr}/${currentUser.username}`).set(pointageData, (error) => {
-                        if (!error) {
-                            document.getElementById('pointage-msg').innerText = "Pointage enregistré avec succès !";
-                            document.getElementById('pointage-msg').className = "text-sm font-medium text-emerald-600";
-                            document.getElementById('btn-pointer').disabled = true;
-                        } else {
-                            alert("Erreur lors de l'enregistrement.");
-                        }
-                    });
-                });
-            });
-        }
-
-        // Dashboard Admin (limitée aux pointages du jour pour clarté de l'interface)
-        function loadAdminDashboard() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const tbody = document.getElementById('admin-table-body');
+                <h1 class="text-xs sm:text-sm font-bold text-gray-300">
+                    Registre de Présence
+                </h1>
+            </div>
             
-            db.ref(`pointages/${todayStr}`).on('value', (snapshot) => {
-                tbody.innerHTML = '';
-                const records = snapshot.val();
-                if (!records) {
-                    tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">Aucun pointage enregistré aujourd'hui.</td></tr>`;
-                    return;
-                }
+            <button id="btnToggleAdmin" class="bg-[#2d2d2d] hover:bg-[#383838] text-gray-200 font-semibold text-xs py-2 px-3 sm:px-4 rounded-xl transition border border-[#3d3d3d] flex items-center space-x-2">
+                <span>🔒</span>
+                <span>Espace Admin</span>
+            </button>
+        </div>
 
-                Object.keys(records).forEach(agent => {
-                    const rec = records[agent];
-                    const timeFormatted = new Date(rec.timestamp).toLocaleTimeString();
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50">
-                            <td class="p-3 font-medium text-slate-700">${agent}</td>
-                            <td class="p-3 text-slate-600">${timeFormatted}</td>
-                            <td class="p-3 text-emerald-600 font-medium">${rec.status}</td>
-                        </tr>
-                    `;
-                });
-            });
+        <!-- Horloge centrale -->
+        <div class="text-center mb-8">
+            <div id="clock" class="text-5xl font-black text-white tracking-wider">--:--:--</div>
+            <div id="date" class="text-xs text-gray-400 font-medium uppercase tracking-widest mt-2">-</div>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="notificationBanner" class="hidden mb-6 p-4 rounded-xl text-center font-medium text-sm transition-all shadow-md"></div>
+
+        <!-- ================= VUE EMPLOYÉ ================= -->
+        <div id="vueEmploye" class="space-y-6">
+            <div id="formulaireBox" class="bg-[#1e1e1e] shadow-2xl rounded-2xl p-6 border border-[#2d2d2d] max-w-xl mx-auto">
+                
+                <!-- Recherche / Liste Employé -->
+                <div class="relative mb-5">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Sélectionner ou chercher votre nom</label>
+                    <input type="text" id="employeSearchInput" placeholder="Cliquez ou tapez votre nom..." class="w-full border border-[#333333] rounded-xl p-3 text-white bg-[#121212] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition placeholder-gray-600 cursor-pointer">
+                    
+                    <div id="employeDropdownList" class="hidden absolute left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#333333] rounded-xl shadow-2xl max-h-56 overflow-y-auto z-50"></div>
+                    <input type="hidden" id="employeSelectionne" value="">
+                </div>
+
+                <!-- Mot de passe -->
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Mot de passe (Par défaut : 0000)</label>
+                    <input type="password" id="pinInput" placeholder="••••" maxlength="6" class="w-full border border-[#333333] rounded-xl p-3 text-white bg-[#121212] focus:ring-2 focus:ring-indigo-500 focus:outline-none tracking-widest text-center text-xl font-bold">
+                </div>
+
+                <!-- Boutons -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btnArrivee" class="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3.5 px-4 rounded-xl transition shadow-lg text-sm tracking-wider">ARRIVÉE</button>
+                    <button id="btnDepart" class="bg-[#2a2a2a] hover:bg-[#333333] text-gray-200 font-extrabold py-3.5 px-4 rounded-xl transition shadow-lg text-sm tracking-wider border border-[#3d3d3d]">DÉPART</button>
+                </div>
+            </div>
+
+            <!-- Écran Confirmation -->
+            <div id="ecranConfirmation" class="hidden bg-[#1e1e1e] shadow-2xl rounded-2xl p-10 border border-[#2d2d2d] text-center space-y-4 max-w-xl mx-auto">
+                <div id="confirmIcon" class="w-16 h-16 bg-green-950 text-green-400 rounded-full flex items-center justify-center mx-auto text-3xl font-bold border border-green-800">✓</div>
+                <h2 id="confirmTitre" class="text-2xl font-bold text-white">Pointage enregistré !</h2>
+                <p id="confirmDetails" class="text-gray-300 text-base"></p>
+                <div class="text-xs text-gray-500 pt-4">Redirection automatique...</div>
+            </div>
+        </div>
+
+        <!-- ================= VUE ADMIN ================= -->
+        <div id="vueAdmin" class="hidden space-y-6">
+            <div class="bg-[#1e1e1e] shadow-2xl rounded-2xl p-6 border border-[#2d2d2d]">
+                <h2 class="text-lg font-bold text-white mb-4">Panneau d'Administration</h2>
+                
+                <div id="adminLoginBox" class="space-y-4 max-w-md">
+                    <p class="text-sm text-gray-400">Entrez le mot de passe administrateur :</p>
+                    <input type="password" id="adminPassword" placeholder="Mot de passe admin" class="w-full border border-[#333333] bg-[#121212] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="btnAdminLogin" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-xl font-semibold w-full transition">Se connecter</button>
+                </div>
+
+                <div id="adminContent" class="hidden space-y-6 mt-4">
+                    <div class="border-t border-[#2d2d2d] pt-4">
+                        <h3 class="font-semibold text-gray-300 mb-2 text-sm">Ajouter un employé</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="nouveauNom" placeholder="Nom complet" class="flex-1 border border-[#333333] bg-[#121212] text-white rounded-xl p-2.5 text-sm">
+                            <button id="btnAjouterEmploye" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">Ajouter</button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-[#2d2d2d] pt-4">
+                        <h3 class="font-semibold text-gray-300 mb-2 text-sm">Liste des employés & Fiches PIN</h3>
+                        <div id="adminListeEmployes" class="max-h-60 overflow-y-auto space-y-3 border border-[#2d2d2d] p-3 rounded-xl text-sm bg-[#121212]"></div>
+                    </div>
+
+                    <div class="border-t border-[#2d2d2d] pt-4">
+                        <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+                            <h3 class="font-semibold text-gray-300 text-sm">Pointages du jour</h3>
+                            <div class="flex gap-2">
+                                <button id="btnPdfJour" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded-lg font-semibold">📄 PDF du jour</button>
+                                <button id="btnExcelGlobal" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-lg font-semibold">📊 Exporter Excel (.xlsx)</button>
+                            </div>
+                        </div>
+                        <div id="adminListePointages" class="max-h-48 overflow-y-auto space-y-2 border border-[#2d2d2d] p-2 rounded-xl text-xs bg-[#121212]"></div>
+                    </div>
+
+                    <div class="border-t border-[#2d2d2d] pt-4">
+                        <h3 class="font-semibold text-gray-300 mb-2 text-sm">Historique (+24h)</h3>
+                        <div id="adminListeHistorique" class="max-h-48 overflow-y-auto space-y-2 border border-[#2d2d2d] p-2 rounded-xl text-xs bg-[#121212]"></div>
+                    </div>
+
+                    <div class="border-t border-[#2d2d2d] pt-4">
+                        <h3 class="font-semibold text-gray-300 mb-2 text-sm">Modifier le mot de passe Admin</h3>
+                        <div class="space-y-2 max-w-md">
+                            <input type="password" id="nouveauPasswordAdmin" placeholder="Nouveau mot de passe admin" class="w-full border border-[#333333] bg-[#121212] text-white rounded-xl p-2.5 text-sm">
+                            <button id="btnChangerPasswordAdmin" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-xs font-semibold w-full transition border border-[#3d3d3d]">Mettre à jour</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, get, remove, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQzystm4eWC2_8fdWoLThThhM3cwq0",
+            authDomain: "pointage-khalif.firebaseapp.com",
+            databaseURL: "https://pointage-khalif-default-rtdb.firebaseio.com",
+            projectId: "pointage-khalif",
+            storageBucket: "pointage-khalif.appspot.com",
+            messagingSenderId: "568693399015",
+            appId: "1:568693399015:web:d9097c0d29dd5ae6e5b142",
+            measurementId: "G-XM50BF3EP0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const employesRef = ref(db, 'employes');
+        const pointagesRef = ref(db, 'pointages');
+        const adminPassRef = ref(db, 'admin/password');
+
+        const LIMITE_HEURE_ARRIVEE_MINUTES = 8 * 60 + 30;
+        const OFFICE_LAT = 5.339317;
+        const OFFICE_LNG = -4.055416;
+        const RAYON_TOLERANCE_METRES = 100;
+
+        function calculerDistanceMetres(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = (deg) => deg * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
         }
 
-        // Réinitialisation de l'appareil d'un utilisateur par l'admin
-        function resetDeviceBinding() {
-            const targetUser = document.getElementById('admin-target-user').value.trim();
-            if (!targetUser) {
-                alert("Entrez un nom d'utilisateur.");
-                return;
+        const listeInitialeEmployes = [
+            "Khalif", "Anani Ulrich", "Jean", "ASSALE Anabelle", "BOKA Axel",
+            "GBE Keani Elue Excelle", "GOUAN Fiacre", "KOUAKOU Carole",
+            "OULAI Tiemoko Perside", "OUEDRAOGO Nicanor", "OYEKALE Samuel Sunday",
+            "SEDE Mleanin Cecile", "TEHA Kouyo Franck", "YOLOU Bleda Sandrine",
+            "WAYOU Claude Sostherne", "ADOPO Jorim", "TAPE Marie-Emmanuelle",
+            "CAMARA Alpha", "KOFFI Israel", "OPKO Michel"
+        ];
+
+        get(employesRef).then((snapshot) => {
+            const employesActuels = snapshot.exists() ? Object.values(snapshot.val()).map(e => e.nom) : [];
+            listeInitialeEmployes.forEach(nom => {
+                if (!employesActuels.includes(nom)) push(employesRef, { nom: nom, pin: "0000" });
+            });
+        });
+
+        get(adminPassRef).then((snapshot) => {
+            if (!snapshot.exists()) set(adminPassRef, "admin123");
+        });
+
+        function afficherNotification(message, type = 'erreur') {
+            const banner = document.getElementById('notificationBanner');
+            banner.textContent = message;
+            banner.className = `mb-6 p-4 rounded-xl text-center font-medium text-sm transition-all shadow-md ${
+                type === 'succes' ? 'bg-green-950 text-green-300 border border-green-800' : 'bg-red-950 text-red-300 border border-red-800'
+            }`;
+            banner.classList.remove('hidden');
+            setTimeout(() => banner.classList.add('hidden'), 4000);
+        }
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR');
+            document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }, 1000);
+
+        let donneesEmployesGlobal = {};
+        let listeNomsEmployes = [];
+        let pointagesAujourdHuiGlobal = [];
+
+        onValue(employesRef, (snapshot) => {
+            const adminListe = document.getElementById('adminListeEmployes');
+            if(adminListe) adminListe.innerHTML = '';
+            listeNomsEmployes = [];
+            if (snapshot.exists()) {
+                donneesEmployesGlobal = snapshot.val();
+                let employesArray = Object.keys(donneesEmployesGlobal).map(key => ({ key, ...donneesEmployesGlobal[key] }));
+                employesArray.sort((a, b) => a.nom.localeCompare(b.nom));
+                employesArray.forEach((emp) => {
+                    listeNomsEmployes.push(emp.nom);
+                    if(adminListe) {
+                        const div = document.createElement('div');
+                        div.className = "bg-[#1e1e1e] p-3 border border-[#2d2d2d] rounded-xl space-y-2";
+                        div.innerHTML = `
+                            <div class="flex justify-between items-center text-white">
+                                <span><b>${emp.nom}</b> <span class="text-xs text-gray-400">(PIN : ${emp.pin || '0000'})</span></span>
+                                <div>
+                                    <button onclick="supprimerEmploye('${emp.key}')" class="bg-red-950 text-red-300 px-2.5 py-1 rounded-lg text-xs font-semibold">Supprimer</button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 items-center pt-2 border-t border-[#2d2d2d]">
+                                <input type="text" id="nouveauPin_${emp.key}" placeholder="Nouveau PIN" maxlength="6" class="bg-[#121212] border border-[#333333] text-white rounded-lg px-2.5 py-1 text-xs w-28">
+                                <button onclick="changerPinEmploye('${emp.key}', '${emp.nom}')" class="bg-amber-700 hover:bg-amber-800 text-white px-2.5 py-1 rounded-lg text-xs font-semibold">Mettre à jour PIN</button>
+                            </div>`;
+                        adminListe.appendChild(div);
+                    }
+                });
             }
-            db.ref(`users/${targetUser}`).update({ deviceId: null }, (error) => {
-                if (!error) {
-                    alert(`L'appareil associé pour ${targetUser} a été réinitialisé.`);
-                    document.getElementById('admin-target-user').value = '';
-                } else {
-                    alert("Erreur lors de la réinitialisation.");
+        });
+
+        const searchInput = document.getElementById('employeSearchInput');
+        const dropdownList = document.getElementById('employeDropdownList');
+        const hiddenInput = document.getElementById('employeSelectionne');
+
+        function afficherDropdown(filtre = "") {
+            dropdownList.innerHTML = "";
+            const resultats = listeNomsEmployes.filter(nom => nom.toLowerCase().includes(filtre.toLowerCase()));
+            
+            if (resultats.length === 0) {
+                dropdownList.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">Aucun employé trouvé</div>';
+            } else {
+                resultats.forEach(nom => {
+                    const item = document.createElement('div');
+                    item.className = "p-3 text-sm text-gray-300 hover:bg-indigo-600 hover:text-white cursor-pointer border-b border-[#2a2a2a] last:border-b-0 transition";
+                    item.textContent = nom;
+                    item.addEventListener('click', () => {
+                        searchInput.value = nom;
+                        hiddenInput.value = nom;
+                        dropdownList.classList.add('hidden');
+                    });
+                    dropdownList.appendChild(item);
+                });
+            }
+            dropdownList.classList.remove('hidden');
+        }
+
+        // Affiche toute la liste dès qu'on clique dans le champ
+        searchInput.addEventListener('focus', () => afficherDropdown(searchInput.value));
+        searchInput.addEventListener('click', () => afficherDropdown(searchInput.value));
+        
+        // Filtre les résultats en cours de frappe
+        searchInput.addEventListener('input', (e) => { 
+            hiddenInput.value = ""; 
+            afficherDropdown(e.target.value); 
+        });
+
+        // Masque le menu quand on clique en dehors
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !dropdownList.contains(e.target)) {
+                dropdownList.classList.add('hidden');
+            }
+        });
+
+        onValue(pointagesRef, (snapshot) => {
+            const container = document.getElementById('adminListePointages');
+            container.innerHTML = '';
+            pointagesAujourdHuiGlobal = [];
+            const aujourdHuiStr = new Date().toLocaleDateString('fr-FR');
+            if (snapshot.exists()) {
+                Object.values(snapshot.val()).reverse().forEach(p => {
+                    if (p.date === aujourdHuiStr) pointagesAujourdHuiGlobal.push(p);
+                    let gpsInfo = (p.latitude && p.longitude) 
+                        ? ` 📍 <a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" class="text-emerald-400 underline font-medium">Voir lieu</a>`
+                        : ` <span class="text-gray-500">(Pas de GPS)</span>`;
+                    
+                    let statutBadgeColor = "text-indigo-400 font-semibold";
+                    if (p.statut === "ARRIVÉE (RETARD)") statutBadgeColor = "text-red-400 font-bold bg-red-950 px-2 py-0.5 rounded";
+                    else if (p.statut === "DÉPART") statutBadgeColor = "text-gray-300 font-semibold bg-gray-800 px-2 py-0.5 rounded";
+
+                    const div = document.createElement('div');
+                    div.className = "bg-[#1e1e1e] p-2.5 rounded-lg border border-[#2d2d2d] flex justify-between items-center text-white";
+                    div.innerHTML = `<span><b>${p.nom || 'Inconnu'}</b> - <span class="${statutBadgeColor}">${p.statut}</span><span class="text-xs ml-1">${gpsInfo}</span></span>
+                    <span class="text-gray-400">${p.date} à ${p.heure}</span>`;
+                    container.appendChild(div);
+                });
+            }
+        });
+
+        document.getElementById('btnArrivee').addEventListener('click', () => effectuerPointage('ARRIVÉE'));
+        document.getElementById('btnDepart').addEventListener('click', () => effectuerPointage('DÉPART'));
+
+        function effectuerPointage(statutDemande) {
+            let nom = hiddenInput.value.trim() || (listeNomsEmployes.includes(searchInput.value.trim()) ? searchInput.value.trim() : "");
+            const pinSaisi = document.getElementById('pinInput').value.trim();
+
+            if (!nom) return afficherNotification("Veuillez sélectionner votre nom dans la liste.", "erreur");
+            if (!pinSaisi) return afficherNotification("Veuillez entrer votre mot de passe (PIN).", "erreur");
+
+            let bonPin = "0000";
+            Object.values(donneesEmployesGlobal).forEach(emp => { if (emp.nom === nom) bonPin = emp.pin || "0000"; });
+            if (pinSaisi !== bonPin) return afficherNotification("Mot de passe incorrect pour cet employé.", "erreur");
+
+            const aujourdHuiStr = new Date().toLocaleDateString('fr-FR');
+            let dejaArrive = false, dejaDepart = false;
+
+            pointagesAujourdHuiGlobal.forEach(p => {
+                if (p.nom === nom) {
+                    if (p.statut.includes('ARRIVÉE')) dejaArrive = true;
+                    if (p.statut === 'DÉPART') dejaDepart = true;
                 }
             });
+
+            if (statutDemande === 'ARRIVÉE' && dejaArrive) return afficherNotification("ARRIVÉE déjà enregistrée aujourd'hui.", "erreur");
+            if (statutDemande === 'DÉPART' && dejaDepart) return afficherNotification("DÉPART déjà enregistré aujourd'hui.", "erreur");
+            if (statutDemande === 'DÉPART' && !dejaArrive) return afficherNotification("Veuillez pointer votre ARRIVÉE d'abord.", "erreur");
+
+            let statutFinal = statutDemande;
+            let minutesRetard = 0;
+
+            if (statutDemande === 'ARRIVÉE') {
+                const now = new Date();
+                const totalMinutes = now.getHours() * 60 + now.getMinutes();
+                if (totalMinutes > LIMITE_HEURE_ARRIVEE_MINUTES) {
+                    statutFinal = 'ARRIVÉE (RETARD)';
+                    minutesRetard = totalMinutes - LIMITE_HEURE_ARRIVEE_MINUTES;
+                }
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const dist = calculerDistanceMetres(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG);
+                        if (dist > RAYON_TOLERANCE_METRES) {
+                            return afficherNotification(`Pointage refusé : vous êtes à ${Math.round(dist)}m du bureau (limite : ${RAYON_TOLERANCE_METRES}m).`, "erreur");
+                        }
+                        sauvegarderPointage(statutFinal, nom, aujourdHuiStr, pos.coords.latitude, pos.coords.longitude, minutesRetard);
+                    },
+                    () => afficherNotification("Localisation impossible : activez le GPS.", "erreur"),
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            } else {
+                afficherNotification("Géolocalisation non supportée par votre navigateur.", "erreur");
+            }
         }
 
-        // Export Excel du jour
-        function exportExcel() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            db.ref(`pointages/${todayStr}`).once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) { alert("Aucune donnée à exporter pour aujourd'hui."); return; }
-                
-                const formattedData = Object.keys(data).map(agent => ({
-                    Agent: agent,
-                    Date: todayStr,
-                    Heure: new Date(data[agent].timestamp).toLocaleTimeString(),
-                    Statut: data[agent].status
-                }));
+        function sauvegarderPointage(statut, nom, aujourdHuiStr, lat, lon, minutesRetard) {
+            const now = new Date();
+            const heureStr = now.toLocaleTimeString('fr-FR');
+            push(pointagesRef, {
+                nom: nom,
+                statut: statut,
+                date: aujourdHuiStr,
+                heure: heureStr,
+                timestamp: Date.now(),
+                latitude: lat,
+                longitude: lon,
+                minutesRetard: minutesRetard
+            }).then(() => {
+                document.getElementById('formulaireBox').classList.add('hidden');
+                const confirmBox = document.getElementById('ecranConfirmation');
+                document.getElementById('confirmTitre').textContent = statut.includes('RETARD') ? `Pointage enregistré avec Retard !` : `Pointage (${statut}) validé !`;
+                document.getElementById('confirmDetails').innerHTML = `Merci <b>${nom}</b>.<br>Heure : <b>${heureStr}</b> (${aujourdHuiStr}).`;
+                confirmBox.classList.remove('hidden');
 
-                const worksheet = XLSX.utils.json_to_sheet(formattedData);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Pointages");
-                XLSX.writeFile(workbook, `Pointage_${todayStr}.xlsx`);
+                setTimeout(() => {
+                    searchInput.value = '';
+                    hiddenInput.value = '';
+                    document.getElementById('pinInput').value = '';
+                    confirmBox.classList.add('hidden');
+                    document.getElementById('formulaireBox').classList.remove('hidden');
+                }, 4000);
             });
         }
 
-        // Export PDF du jour
-        function exportPDF() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            db.ref(`pointages/${todayStr}`).once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) { alert("Aucune donnée à exporter pour aujourd'hui."); return; }
+        const btnToggleAdmin = document.getElementById('btnToggleAdmin');
+        btnToggleAdmin.addEventListener('click', () => {
+            const isHidden = document.getElementById('vueAdmin').classList.contains('hidden');
+            document.getElementById('vueAdmin').classList.toggle('hidden', !isHidden);
+            document.getElementById('vueEmploye').classList.toggle('hidden', isHidden);
+            btnToggleAdmin.innerHTML = isHidden ? '<span>⬅️</span><span>Espace Pointage</span>' : '<span>🔒</span><span>Espace Admin</span>';
+        });
 
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                doc.text(`Rapport de Pointage - ${todayStr}`, 14, 20);
-                
-                const rows = [];
-                Object.keys(data).forEach(agent => {
-                    rows.push([agent, todayStr, new Date(data[agent].timestamp).toLocaleTimeString(), data[agent].status]);
-                });
-
-                doc.autoTable({
-                    head: [['Agent', 'Date', 'Heure', 'Statut']],
-                    body: rows,
-                    startY: 30,
-                });
-
-                doc.save(`Pointage_${todayStr}.pdf`);
+        document.getElementById('btnAdminLogin').addEventListener('click', () => {
+            get(adminPassRef).then((snapshot) => {
+                if (document.getElementById('adminPassword').value === (snapshot.exists() ? snapshot.val() : "admin123")) {
+                    document.getElementById('adminLoginBox').classList.add('hidden');
+                    document.getElementById('adminContent').classList.remove('hidden');
+                } else {
+                    afficherNotification("Mot de passe administrateur incorrect.", "erreur");
+                }
             });
-        }
+        });
+
+        document.getElementById('btnAjouterEmploye').addEventListener('click', () => {
+            const nom = document.getElementById('nouveauNom').value.trim();
+            if (nom) {
+                push(employesRef, { nom: nom, pin: "0000" }).then(() => {
+                    document.getElementById('nouveauNom').value = '';
+                    afficherNotification("Employé ajouté (PIN par défaut : 0000) !", "succes");
+                });
+            }
+        });
+
+        window.supprimerEmploye = (key) => remove(ref(db, `employes/${key}`));
+        window.changerPinEmploye = (key, nom) => {
+            const input = document.getElementById(`nouveauPin_${key}`);
+            if (input.value.trim()) {
+                update(ref(db, `employes/${key}`), { pin: input.value.trim() }).then(() => {
+                    input.value = '';
+                    afficherNotification(`Mot de passe de ${nom} mis à jour !`, "succes");
+                });
+            }
+        };
     </script>
 </body>
 </html>
